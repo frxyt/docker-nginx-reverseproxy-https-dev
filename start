@@ -1,0 +1,30 @@
+#!/bin/sh
+
+# Stop on first error
+set -e
+
+# Set default values
+export NGINX_HOST=${NGINX_HOST:-localhost}
+export NGINX_PROXY_PASS=${NGINX_PROXY_PASS:-host.docker.internal}
+export NGINX_SSL_SUBJ=${NGINX_SSL_SUBJ:-/C=FX/ST=None/L=None/O=None/OU=None/CN=localhost}
+
+# Replace values in NGINX configuration
+envsubst '${NGINX_HOST}:${NGINX_PROXY_PASS}:${NGINX_SERVER_OPTIONS}:${NGINX_LOCATION_OPTIONS}' < /etc/nginx/conf.d/default.template > /etc/nginx/conf.d/default.conf
+cat /etc/nginx/conf.d/default.conf
+echo
+
+# Generate new certificate if needed
+if [ ! -f /etc/nginx/ssl/nginx.key -o ! -f /etc/nginx/ssl/nginx.cert ]; then
+    openssl req \
+        -x509 \
+        -subj "${NGINX_SSL_SUBJ}" \
+        -nodes \
+        -days 3650 \
+        -newkey rsa:2048 \
+        -keyout /etc/nginx/ssl/nginx.key \
+        -out /etc/nginx/ssl/nginx.cert
+fi
+
+# Start NGINX
+echo "Start NGINX"
+exec nginx -g 'daemon off;'
